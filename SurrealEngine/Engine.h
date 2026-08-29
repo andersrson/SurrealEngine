@@ -139,7 +139,6 @@ public:
 	UViewport* viewport = nullptr;
 	UCanvas* canvas = nullptr;
 	UGC* dxgc = nullptr;
-	UDXSaveInfo* dxSaveInfo = nullptr;
 	UConversationMissionList* dxConMissionList = nullptr;
 	UConsole* console = nullptr;
 	URootWindow* dxRootWindow = nullptr;

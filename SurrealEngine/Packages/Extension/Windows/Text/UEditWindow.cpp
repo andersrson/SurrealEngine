@@ -71,8 +71,10 @@ void UEditWindow::DeleteChar(std::optional<bool> bBefore, std::optional<bool> bU
 	else if (bBefore.has_value() && bBefore.value())
 	{
 		if (insertPos() > 0)
+		{
 			text.erase(text.begin() + (insertPos() - 1));
-		insertPos()--;
+			insertPos()--;
+		}
 	}
 	else
 	{
@@ -378,7 +380,6 @@ void UEditWindow::DrawWindow(UGC* gc)
 	if (selCount > 0)
 	{
 		// To do: this doesn't work for multi line edit (we must split on a per line basis)
-
 		std::string beforeText = Text().substr(0, selStart);
 		std::string selectionText = Text().substr(selStart, selCount);
 		std::string afterText = Text().substr(selStart + selCount);

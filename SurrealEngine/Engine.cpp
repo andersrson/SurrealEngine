@@ -5,6 +5,7 @@
 #include "Utils/StrTools.h"
 #include "Utils/SHA1Sum.h"
 #include "Render/RenderSubsystem.h"
+#include "Package/ObjectFlags.h"
 #include "Package/PackageManager.h"
 #include "Package/ObjectStream.h"
 #include "Packages/Core/UClass.h"
@@ -30,6 +31,7 @@
 #include "Packages/Engine/Resources/Mesh/USkeletalMesh.h"
 #include "Packages/Engine/Resources/Textures/UTexture.h"
 #include "Packages/Engine/Resources/UMusic.h"
+#include "Packages/Engine/Resources/UPalette.h"
 #include "Packages/Engine/Resources/USound.h"
 #include "Packages/Engine/USurrealClient.h"
 #include "Packages/Engine/Subsystems/UGameEngine.h"
@@ -50,6 +52,7 @@
 #include "Packages/ConSys/Events/UConEventCheckObject.h"
 #include "Packages/DeusEx/UDeusExLevelInfo.h"
 #include "Packages/DeusEx/UDeusExSaveInfo.h"
+#include "Packages/DeusEx/UGameDirectory.h"
 #include "ObjectTravelInfo.h"
 #include "Math/quaternion.h"
 #include "Math/FrustumPlanes.h"
@@ -91,7 +94,6 @@ Engine::Engine(GameLaunchInfo launchinfo) : LaunchInfo(launchinfo)
 		deusExPackage = packages->GetPackage("DeusEx");
 		dxgc = UObject::Cast<UGC>(transientpkg->NewObject("gc", extpkg->GetClass("GC"), ObjectFlags::Transient));
 		dxgc->Canvas() = canvas;
-		dxSaveInfo = UObject::Cast<UDXSaveInfo>(transientpkg->NewObject("DeusExSaveInfo", deusExPackage->GetClass("DeusExSaveInfo"), ObjectFlags::Transient));
 		dxConMissionList = UObject::Cast<UConversationMissionList>(packages->GetPackage("DeusExConText")->GetUObject("ConversationMissionList", "ConMissionList"));
 	}
 
@@ -287,7 +289,7 @@ void Engine::Run()
 			LoginPlayer();
 		}
 
-		if (ClientTravelInfo.URL.HasOption("load"))
+		if (ClientTravelInfo.URL.HasOption("load") || ClientTravelInfo.URL.HasOption("loadgame"))
 		{
 			UnrealURL url(ClientTravelInfo.URL);
 			LoadFromSaveFile(url);
@@ -777,7 +779,13 @@ void Engine::LoadFromSaveFile(const UnrealURL& url)
 	Package* savefilePackage = nullptr;
 	uint32_t slotNum = 0;
 
-	if (url.HasOption("load"))
+	if (url.HasOption("loadgame"))
+	{
+		int dxSlotNum = Convert::to_int32(url.GetOption("loadgame"));
+		slotNum = dxSlotNum;
+		savefilePackage = packages->LoadDeusExSaveSlot(slotNum);
+	}
+	else if (url.HasOption("load"))
 	{
 		slotNum = Convert::to_uint32(url.GetOption("load"));
 		savefilePackage = packages->LoadSaveSlot(slotNum);
@@ -878,9 +886,20 @@ void Engine::SaveGameToSlot(int32_t slotNum, const std::string& saveDescription)
 		// - Save the level package using the name [MapName].dxs
 		// - Save the associated DeusExSaveInfo class as SaveInfo.dxs within that same folder,
 		// in which saveDescription parameter will be used in DeusExSaveInfo.Description
-		auto slotNumStr = std::to_string(slotNum);
-		slotNumStr.insert(0, 4 - slotNumStr.length(), '0'); // Pad it with 0s
-		auto saveFolder = "Save" + slotNumStr;
+
+		std::string saveFolder;
+
+		if(slotNum == -1)
+			saveFolder = "QuickSave";
+		else
+		{
+			if(slotNum == 0)
+				slotNum = UDXGameDirectory::GetNewSaveFileIndex();
+
+			auto slotNumStr = std::to_string(slotNum);
+			slotNumStr.insert(0, 4 - slotNumStr.length(), '0'); // Pad it with 0s
+			saveFolder = "Save" + slotNumStr;
+		}
 
 		auto saveSlotFolder = saveFolderPath / saveFolder;
 		if (!fs::exists(saveSlotFolder) || !fs::is_directory(saveSlotFolder))
@@ -892,12 +911,29 @@ void Engine::SaveGameToSlot(int32_t slotNum, const std::string& saveDescription)
 		auto saveInfoFullPath = (saveSlotFolder / saveInfoName).string();
 		LevelPackage->Save(Level, saveFileFullPath);
 
-		dxSaveInfo->DirectoryIndex() = slotNum;
-		dxSaveInfo->Description() = saveDescription;
-		dxSaveInfo->MissionLocation() = DeusExLevelInfo ? DeusExLevelInfo->MissionLocation() : "";
-		dxSaveInfo->MapName() = Level->package->GetPackageName().ToString();
-		dxSaveInfo->UpdateTimeStamp();
-		deusExPackage->Save(dxSaveInfo, saveInfoFullPath);
+		Package* savePkg = packages->CreateSaveInfoPackage(saveFolder);
+		UDXSaveInfo* info = UObject::Cast<UDXSaveInfo>(
+			savePkg->NewObject("MyDeusExSaveInfo",
+				deusExPackage->GetClass("DeusExSaveInfo"),
+			ObjectFlags::Transient)
+		);
+
+		if(dxRootWindow && dxRootWindow->lastGeneratedSnapshot)
+		{
+			auto snap = dxRootWindow->lastGeneratedSnapshot;
+			snap->package = savePkg;
+			if(snap->Palette())
+				snap->Palette()->package = savePkg;
+			info->Snapshot() = snap;
+		}
+
+		info->DirectoryIndex() = slotNum;
+		info->Description() = saveDescription;
+		info->MissionLocation() = DeusExLevelInfo ? DeusExLevelInfo->MissionLocation() : "";
+		info->MapName() = Level->package->GetPackageName().ToString();
+		info->UpdateTimeStamp();
+
+		savePkg->Save(info, saveInfoFullPath);
 	}
 	else
 	{

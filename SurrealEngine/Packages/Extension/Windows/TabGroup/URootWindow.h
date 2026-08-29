@@ -98,4 +98,6 @@ public:
 	int& vMultiplier() { return Value<int>(PropOffsets_RootWindow.vMultiplier); }
 
 	bool RenderViewportSet = false;
+
+	UTexture* lastGeneratedSnapshot = nullptr;
 };

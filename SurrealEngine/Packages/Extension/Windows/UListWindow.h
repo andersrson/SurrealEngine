@@ -1,6 +1,7 @@
 #pragma once
 
 #include "UWindow.h"
+#include <vector>
 
 class UListWindow : public UWindow
 {
@@ -41,6 +42,7 @@ public:
 	bool IsRowSelected(int rowId);
 	void ModifyRow(int rowId, const std::string& rowStr);
 	void MoveRow(uint8_t Move, std::optional<bool> bSelect, std::optional<bool> bClearRows, std::optional<bool> bDrag);
+	void ParentRequestedPreferredSize(bool bWidthSpecified, float& preferredWidth, bool bHeightSpecified, float& preferredHeight) override;
 	void PlayListSound(UObject* listSound, std::optional<float> Volume, std::optional<float> Pitch);
 	void RemoveSortColumn(int colIndex);
 	void ResetSortColumns(std::optional<bool> bSort);
@@ -107,6 +109,14 @@ public:
 	};
 	std::vector<Item> items;
 	int nextRowId = 1;
+
+	struct SortColumn
+	{
+		int index = -1;
+		bool reverse = false;
+		bool caseSensitive = false;
+	};
+	std::vector<SortColumn> sortColumns;
 
 	Color highlightTextColor = { 255,255,255,255 };
 

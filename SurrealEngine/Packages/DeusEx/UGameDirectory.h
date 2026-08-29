@@ -25,7 +25,7 @@ public:
 	UDXSaveInfo*& TempSaveInfo() { return Value<UDXSaveInfo*>(PropOffsets_GameDirectory.tempSaveInfo); }
 
 	void GetGameDirectory(); // Depends on what GameDirectoryType is set
-	int GetNewSaveFileIndex();
+	static int GetNewSaveFileIndex();
 	std::string GenerateSaveFilename(int saveIndex);
 	std::string GenerateNewSaveFileName(std::optional<int> newIndex);
 	int GetDirCount();
@@ -40,9 +40,10 @@ public:
 	int GetSaveFreeSpace();
 	int GetSaveDirectorySize(int saveIndex);
 
+	static std::string GetSaveIndexFolderName(int saveIndex);
+
 private:
 	fs::path currentDirectory;
-	std::string GetSaveIndexFolderName(int saveIndex);
 	void PopulateDirectoryList();
 	void PopulateSaveInfoPointers();
 };

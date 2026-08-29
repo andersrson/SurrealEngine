@@ -278,6 +278,7 @@ void NObject::RegisterFunctions()
 	{
 		RegisterVMNativeFunc_2("Object", "AllObjects", &NObject::AllObjects_DeusEx, 1001);
 		RegisterVMNativeFunc_1("Object", "CriticalDelete", &NObject::CriticalDelete, 751);
+		RegisterVMNativeFunc_3("Object", "GetConfig", &NObject::GetConfig, 0);
 	}
 
 	// Package 61 stuff
@@ -851,6 +852,11 @@ void NObject::GetAxes(const Rotator& A, vec3& X, vec3& Y, vec3& Z)
 void NObject::GetClassFlags_U227(UObject* Class, int& ReturnValue)
 {
 	ReturnValue = static_cast<int>(Class->Class->ClsFlags);
+}
+
+void NObject::GetConfig(const std::string& className, const std::string& propertyName, std::string& ReturnValue)
+{
+	ReturnValue = engine->packages->GetIniValue("System", className, propertyName, "");
 }
 
 void NObject::GetDefaultObject_U227(UObject* ObjClass, UObject*& ReturnValue)

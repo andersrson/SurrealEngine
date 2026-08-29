@@ -4,6 +4,7 @@
 #include "Package.h"
 #include "IniFile.h"
 #include "GameFolder.h"
+#include "Package/NameString.h"
 #include <list>
 #include <filesystem>
 
@@ -56,6 +57,8 @@ public:
 	void RemoveSaveInfoPackage(const NameString& saveFolderName);
 	std::map<NameString, Package*> GetSaveInfoPackages() const { return saveInfos; };
 
+	Package* CreateSaveInfoPackage(const NameString& saveFolderName);
+
 	Package* LoadMap(const std::string& path);
 	void UnloadPackage(Package* package);
 
@@ -63,6 +66,7 @@ public:
 
 	Package* LoadSaveFile(const std::string& path);
 	Package* LoadSaveSlot(const uint32_t slotNum);
+	Package* LoadDeusExSaveSlot(int32_t slotNum);
 
 	std::shared_ptr<PackageStream> GetStream(Package* package);
 

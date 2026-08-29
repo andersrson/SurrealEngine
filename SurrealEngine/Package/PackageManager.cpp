@@ -309,6 +309,8 @@
 #include "Native/NWebRequest.h"
 #include "Native/NWebResponse.h"
 #include "Native/NWindow.h"
+#include <cstddef>
+#include <string>
 
 PackageManager::PackageManager(const GameLaunchInfo& launchInfo) : launchInfo(launchInfo)
 {
@@ -436,6 +438,21 @@ Package* PackageManager::LoadSaveFile(const std::string& path)
 Package* PackageManager::LoadSaveSlot(const uint32_t slotNum)
 {
 	return LoadSaveFile("Save" + std::to_string(slotNum) + "." + GetSaveExtension());
+}
+
+Package* PackageManager::LoadDeusExSaveSlot(int32_t slotNum)
+{
+	auto saveFolder = UDXGameDirectory::GetSaveIndexFolderName(slotNum);
+
+	Package* infoPkg = GetSaveInfoPackage(saveFolder);
+	if(!infoPkg)
+		return nullptr;
+
+	auto* info = UObject::Cast<UDXSaveInfo>(infoPkg->GetUObject("DeusExSaveInfo", "MyDeusExSaveInfo"));
+	if(!info)
+		return nullptr;
+
+	return LoadSaveFile(saveFolder + "/" + info->MapName() + "." + GetSaveExtension());
 }
 
 void PackageManager::ScanForMaps()
@@ -596,6 +613,14 @@ void PackageManager::RemoveSaveInfoPackage(const NameString& saveFolderName)
 
 	if (idx != saveInfos.end())
 		saveInfos.erase(idx);
+}
+
+Package* PackageManager::CreateSaveInfoPackage(const NameString& saveFolderName)
+{
+	Package* pkg = GC::Alloc<Package>(this, saveFolderName, "");
+	pkg->Version = 68;
+	saveInfos[saveFolderName] = pkg;
+	return pkg;
 }
 
 std::shared_ptr<PackageStream> PackageManager::GetStream(Package* package)

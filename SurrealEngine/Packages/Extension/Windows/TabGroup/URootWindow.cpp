@@ -1,4 +1,5 @@
 
+#include "Packages/Engine/Resources/Textures/UBitmap.h"
 #include "Precomp.h"
 #include "URootWindow.h"
 #include "Utils/Logger.h"
@@ -7,6 +8,10 @@
 #include "Packages/Engine/Resources/Textures/UTexture.h"
 #include "Packages/Extension/Windows/UGC.h"
 #include "Engine.h"
+#include "Render/RenderSubsystem.h"
+#include "RenderDevice/RenderDevice.h"
+#include "Packages/Engine/Resources/UPalette.h"
+#include "Package/PackageManager.h"
 
 void URootWindow::EnablePositionalSound(std::optional<bool> bEnable)
 {
@@ -20,8 +25,83 @@ void URootWindow::EnableRendering(std::optional<bool> newRender)
 
 UObject* URootWindow::GenerateSnapshot(std::optional<bool> bFilter)
 {
-	LogUnimplemented("RootWindow.GenerateSnapshot");
-	return nullptr;
+	lastGeneratedSnapshot = nullptr;
+
+	// Screenshot of the full resolution viewport
+	int w = engine->viewport->ViewportWidth();
+	int h = engine->viewport->ViewportHeight();
+	std::vector<TextureColor> pixels(w*h);
+
+	engine->render->Device->ReadPixels(pixels.data());
+
+	// Destination snapshot dimensions
+	const int dw = 256, dh = 128;
+	std::vector<TextureColor> small(dw * dh);
+
+	// Box filter frame buffer -> 256x128
+	for (int y = 0; y < dh; y++)
+	{
+		for (int x = 0; x < dw; x++)
+		{
+			int sx0 = x * w / dw, sx1 = (x + 1) * w / dw;
+			int sy0 = y * h / dh, sy1 = (y + 1) * h / dh;
+			uint32_t r = 0, g = 0, b = 0, n = 0;
+			for (int sy = sy0; sy < sy1; sy++)
+			for (int sx = sx0; sx < sx1; sx++)
+			{
+				const TextureColor& p = pixels[sy * w + sx];
+				r += p.R; g += p.G; b += p.B; n++;
+			}
+			small[y * dw + x] = TextureColor(r / n, g / n, b / n, 255);
+		}
+	}
+
+	// Build 256 color palette
+	UPalette* pal = UObject::Cast<UPalette>(
+	engine->packages->GetTransientPackage()->NewObject("Palette1", engine->packages->FindClass("Engine.Palette"), ObjectFlags::Transient));
+	pal->Colors.resize(256);
+	for (int i = 0; i < 216; i++)
+	{
+		uint32_t r = (i / 36) % 6 * 51;      // 51 = 255/5
+		uint32_t g = (i / 6)  % 6 * 51;
+		uint32_t b =  i       % 6 * 51;
+		pal->Colors[i] = r | (g << 8) | (b << 16);
+	}
+	for (int i = 216; i < 256; i++)          // 40 greys for gradients
+	{
+		uint32_t v = (i - 216) * 255 / 39;
+		pal->Colors[i] = v | (v << 8) | (v << 16);
+	}
+
+	UTexture* tex = UObject::Cast<UTexture>(
+	engine->packages->GetTransientPackage()->NewObject("Texture1", engine->packages->FindClass("Engine.Texture"), ObjectFlags::Transient));
+
+	tex->Palette() = pal;
+	tex->Format()  = (uint8_t)TextureFormat::P8;
+	tex->USize()   = dw;
+	tex->VSize()   = dh;
+	tex->UBits()   = 8;              // log2(256)
+	tex->VBits()   = 7;              // log2(128)
+	tex->UClamp()  = dw;
+	tex->VClamp()  = dh;
+
+	UnrealMipmap mip;
+	mip.Width  = dw;
+	mip.Height = dh;
+	mip.UBits  = 8;
+	mip.VBits  = 7;
+	mip.Data.resize(dw * dh);
+
+	for (int i = 0; i < dw * dh; i++)
+		mip.Data[i] = pal->FindBestColor(Color{small[i].R, small[i].G, small[i].B, 255});
+
+	tex->UsedFormat = TextureFormat::P8;
+	tex->UncompressedMipmaps.clear();
+	tex->UncompressedMipmaps.push_back(std::move(mip));
+	tex->UsedMipmaps = tex->UncompressedMipmaps;
+
+	lastGeneratedSnapshot = tex;
+	return tex;
 }
 
 bool URootWindow::IsPositionalSoundEnabled()
@@ -89,7 +169,8 @@ void URootWindow::ResetRenderViewport()
 
 void URootWindow::SetSnapshotSize(float newWidth, float NewHeight)
 {
-	LogUnimplemented("RootWindow.SetSnapshotSize");
+	snapshotWidth() = newWidth;
+	snapshotHeight() = NewHeight;
 }
 
 void URootWindow::ShowCursor(std::optional<bool> bShow)

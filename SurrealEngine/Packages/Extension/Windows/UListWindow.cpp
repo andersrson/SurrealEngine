@@ -35,18 +35,26 @@ int UListWindow::AddRow(const std::string& rowStr, std::optional<int> clientData
 	if (start < rowStr.size())
 		item.cells.push_back(rowStr.substr(start));
 	items.push_back(std::move(item));
+
+	if(bAutoSort())
+		Sort();
+
+	AskParentForReconfigure();
+
 	return id;
 }
 
 void UListWindow::AddSortColumn(int colIndex, std::optional<bool> bReverse, std::optional<bool> bCaseSensitive)
 {
-	LogUnimplemented("ListWindow.AddSortColumn");
+	sortColumns.push_back((SortColumn){ colIndex, bReverse.value_or(false), bCaseSensitive.value_or(false) });
 }
 
 void UListWindow::DeleteAllRows()
 {
 	items.clear();
 	nextRowId = 1;
+
+	AskParentForReconfigure();
 }
 
 void UListWindow::DeleteRow(int rowId)
@@ -128,7 +136,7 @@ std::string UListWindow::GetField(int rowId, int colIndex)
 	int rowIndex = RowIdToIndex(rowId);
 	if (rowIndex == -1)
 		return {};
-	if (colIndex < 0 || items[rowIndex].cells.size() >= (size_t)colIndex)
+	if (colIndex < 0 || (size_t)colIndex >= items[rowIndex].cells.size())
 		return {};
 	return items[rowIndex].cells[colIndex];
 }
@@ -277,6 +285,27 @@ void UListWindow::MoveRow(uint8_t Move, std::optional<bool> bSelect, std::option
 	LogUnimplemented("ListWindow.MoveRow");
 }
 
+void UListWindow::ParentRequestedPreferredSize(bool bWidthSpecified, float& preferredWidth, bool bHeightSpecified, float& preferredHeight)
+{
+	if (UFont* font = normalFont())
+	{
+		float lineHeight = (float)font->GetGlyph('X').VSize + 2;
+		lineSize() = lineHeight;
+		if (!bWidthSpecified)
+		{
+			float w = 0.0f;
+			for (auto& col : columns)
+				w += col.width;
+
+			preferredWidth = w;
+		}
+		if (!bHeightSpecified)
+			preferredHeight = lineHeight * (float)items.size();
+	}
+
+	UWindow::ParentRequestedPreferredSize(bWidthSpecified, preferredWidth, bHeightSpecified, preferredHeight);
+}
+
 void UListWindow::PlayListSound(UObject* listSound, std::optional<float> Volume, std::optional<float> Pitch)
 {
 	// UNUSED from scripts.
@@ -291,7 +320,9 @@ void UListWindow::RemoveSortColumn(int colIndex)
 
 void UListWindow::ResetSortColumns(std::optional<bool> bSort)
 {
-	LogUnimplemented("ListWindow.ResetSortColumns");
+	sortColumns.clear();
+	if(bSort.has_value() && bSort.value())
+		Sort();
 }
 
 void UListWindow::ResizeColumns(std::optional<bool> bExpandOnly)
@@ -395,6 +426,9 @@ void UListWindow::SetField(int rowId, int colIndex, const std::string& fieldStr)
 	if (items[rowIndex].cells.size() <= (size_t)colIndex)
 		items[rowIndex].cells.resize(colIndex + 1);
 	items[rowIndex].cells[colIndex] = fieldStr;
+
+	if(bAutoSort())
+		Sort();
 }
 
 void UListWindow::SetFieldMargins(float newMarginWidth, float newMarginHeight)
@@ -489,7 +523,8 @@ void UListWindow::SetRowClientObject(int rowId, UObject* clientObj)
 
 void UListWindow::SetSortColumn(int colIndex, std::optional<bool> bReverse, std::optional<bool> bCaseSensitive)
 {
-	LogUnimplemented("ListWindow.SetSortColumn");
+	ResetSortColumns(false);
+	AddSortColumn(colIndex, bReverse, bCaseSensitive);
 }
 
 void UListWindow::ShowFocusRow()
@@ -500,7 +535,59 @@ void UListWindow::ShowFocusRow()
 
 void UListWindow::Sort()
 {
-	LogUnimplemented("ListWindow.Sort");
+	if (sortColumns.empty() || items.size() < 2)
+		return;
+
+	auto cell = [this](const Item& it, int col) -> const std::string&
+	{
+		static const std::string empty;
+		return ((size_t)col < it.cells.size()) ? it.cells[col] : empty;
+	};
+
+	std::stable_sort(items.begin(), items.end(),
+		[&](const Item& a, const Item& b)
+		{
+			for (const SortColumn& sc : sortColumns)
+			{
+				if (sc.index < 0 || (size_t)sc.index >= columns.size())
+					continue;
+
+				const std::string& sa = cell(a, sc.index);
+				const std::string& sb = cell(b, sc.index);
+				int cmp = 0;
+
+				switch ((EColumnType)columns[sc.index].type)
+				{
+				case EColumnType::Float:
+				case EColumnType::Time:
+				{
+					// Empty cells sort as 0; strtod avoids throwing on junk.
+					double da = sa.empty() ? 0.0 : std::strtod(sa.c_str(), nullptr);
+					double db = sb.empty() ? 0.0 : std::strtod(sb.c_str(), nullptr);
+					cmp = (da < db) ? -1 : (da > db) ? 1 : 0;
+					break;
+				}
+				default:
+					if (sc.caseSensitive)
+					{
+						cmp = sa.compare(sb);
+					}
+					else
+					{
+						size_t n = std::min(sa.size(), sb.size());
+						for (size_t i = 0; i < n && cmp == 0; i++)
+							cmp = std::tolower((unsigned char)sa[i]) - std::tolower((unsigned char)sb[i]);
+						if (cmp == 0)
+							cmp = (int)sa.size() - (int)sb.size();
+					}
+					break;
+				}
+
+				if (cmp != 0)
+					return sc.reverse ? (cmp > 0) : (cmp < 0);
+			}
+			return false;   // equal on all keys — stable_sort preserves order
+		});
 }
 
 void UListWindow::ToggleRowSelection(int rowId)
