@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Package/PackageStream.h"
 #include "UProperty.h"
 
 class UBoolProperty : public UProperty
@@ -12,7 +13,8 @@ public:
 
 	void SaveHeader(void* data, PropertyHeader& header) override;
 	void SaveValue(void* data, PackageStreamWriter* stream) override;
-
+	void SaveStructMemberValue(void* data, PackageStreamWriter* stream) override;
+	
 	size_t ElementAlignment() override;
 	size_t ElementSize() override;
 

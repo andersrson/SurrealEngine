@@ -717,7 +717,7 @@ void Engine::LoadMap(const UnrealURL& url, const std::map<std::string, std::stri
 		Exception::Throw("Could not find any gameinfo class!");
 
 	// Spawn GameInfo actor
-	GameInfo = UObject::Cast<UGameInfo>(LevelPackage->NewObject("gameinfo", gameInfoClass, ObjectFlags::NoFlags));
+	GameInfo = UObject::Cast<UGameInfo>(LevelPackage->NewObject("gameinfo", gameInfoClass, ObjectFlags::Transactional | ObjectFlags::LoadForClient | ObjectFlags::LoadForServer | ObjectFlags::LoadForEdit));
 	GameInfo->XLevel() = Level;
 	GameInfo->Level() = LevelInfo;
 	Level->Collision.AddToCollision(GameInfo);
@@ -915,7 +915,7 @@ void Engine::SaveGameToSlot(int32_t slotNum, const std::string& saveDescription)
 		UDXSaveInfo* info = UObject::Cast<UDXSaveInfo>(
 			savePkg->NewObject("MyDeusExSaveInfo",
 				deusExPackage->GetClass("DeusExSaveInfo"),
-			ObjectFlags::Transient)
+			ObjectFlags::Public | ObjectFlags::LoadForClient | ObjectFlags::LoadForServer | ObjectFlags::LoadForEdit)
 		);
 
 		if(dxRootWindow && dxRootWindow->lastGeneratedSnapshot)

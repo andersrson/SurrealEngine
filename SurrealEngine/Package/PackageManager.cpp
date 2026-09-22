@@ -1,4 +1,5 @@
 
+#include "Package/PackageFlags.h"
 #include "Precomp.h"
 #include "PackageManager.h"
 #include "Package.h"
@@ -311,6 +312,7 @@
 #include "Native/NWindow.h"
 #include <cstddef>
 #include <string>
+#include <random>
 
 PackageManager::PackageManager(const GameLaunchInfo& launchInfo) : launchInfo(launchInfo)
 {
@@ -619,6 +621,11 @@ Package* PackageManager::CreateSaveInfoPackage(const NameString& saveFolderName)
 {
 	Package* pkg = GC::Alloc<Package>(this, saveFolderName, "");
 	pkg->Version = 68;
+	pkg->Flags = PackageFlags::AllowDownload;
+	std::random_device rd;
+	for (int i = 0; i < 16; i++)
+		pkg->Guid[i] = (uint8_t)(rd() & 0xFF);
+
 	saveInfos[saveFolderName] = pkg;
 	return pkg;
 }

@@ -58,7 +58,7 @@ UObject* URootWindow::GenerateSnapshot(std::optional<bool> bFilter)
 
 	// Build 256 color palette
 	UPalette* pal = UObject::Cast<UPalette>(
-	engine->packages->GetTransientPackage()->NewObject("Palette1", engine->packages->FindClass("Engine.Palette"), ObjectFlags::Transient));
+	engine->packages->GetTransientPackage()->NewObject("Palette1", engine->packages->FindClass("Engine.Palette"), ObjectFlags::LoadForClient | ObjectFlags::LoadForServer | ObjectFlags::LoadForEdit));
 	pal->Colors.resize(256);
 	for (int i = 0; i < 216; i++)
 	{
@@ -74,7 +74,7 @@ UObject* URootWindow::GenerateSnapshot(std::optional<bool> bFilter)
 	}
 
 	UTexture* tex = UObject::Cast<UTexture>(
-	engine->packages->GetTransientPackage()->NewObject("Texture1", engine->packages->FindClass("Engine.Texture"), ObjectFlags::Transient));
+	engine->packages->GetTransientPackage()->NewObject("Texture1", engine->packages->FindClass("Engine.Texture"), ObjectFlags::LoadForClient | ObjectFlags::LoadForServer | ObjectFlags::LoadForEdit));
 
 	tex->Palette() = pal;
 	tex->Format()  = (uint8_t)TextureFormat::P8;

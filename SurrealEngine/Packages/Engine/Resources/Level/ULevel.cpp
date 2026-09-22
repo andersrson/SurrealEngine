@@ -53,6 +53,10 @@ void ULevel::Save(PackageStreamWriter* stream)
 		stream->WriteInt32(spec.reachFlags);
 		stream->WriteInt8(spec.bPruned);
 	}
+	stream->WriteFloat(0.0f);
+	const uint8_t zeros[17] = {};
+	stream->WriteBytes(zeros, 17);
+	stream->WriteIndex(0);
 }
 
 void ULevel::TickActor(float elapsed, UActor* actor)

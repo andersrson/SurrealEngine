@@ -45,7 +45,7 @@ UActor* UActor::Spawn(UClass* SpawnClass, std::optional<UActor*> SpawnOwner, std
 	// To do: find unique new name in the package
 	static std::map<NameString, int> nextIndex;
 	NameString name = SpawnClass->Name.ToString() + std::to_string(nextIndex[SpawnClass->Name]++);
-	UActor* actor = UObject::Cast<UActor>(engine->LevelPackage->NewObject(name, UObject::Cast<UClass>(SpawnClass), ObjectFlags::Transient, true));
+	UActor* actor = UObject::Cast<UActor>(engine->LevelPackage->NewObject(name, UObject::Cast<UClass>(SpawnClass), ObjectFlags::Transactional | ObjectFlags::LoadForClient | ObjectFlags::LoadForServer | ObjectFlags::LoadForEdit, true));
 
 	actor->Outer() = XLevel()->Outer();
 	actor->XLevel() = XLevel();
