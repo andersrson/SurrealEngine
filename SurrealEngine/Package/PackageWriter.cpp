@@ -194,6 +194,9 @@ int PackageWriter::GetObjectReference(UObject* obj)
 	if (obj == nullptr)
 		return 0;
 
+	if (obj->package == Source->GetPackageManager()->GetTransientPackage())
+		return 0;
+	
 	if (AllFlags(obj->Flags, ObjectFlags::NotForClient | ObjectFlags::NotForServer))
 		return 0;
 
