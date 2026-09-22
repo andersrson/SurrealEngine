@@ -46,7 +46,7 @@ int UListWindow::AddRow(const std::string& rowStr, std::optional<int> clientData
 
 void UListWindow::AddSortColumn(int colIndex, std::optional<bool> bReverse, std::optional<bool> bCaseSensitive)
 {
-	sortColumns.push_back((SortColumn){ colIndex, bReverse.value_or(false), bCaseSensitive.value_or(false) });
+	sortColumns.push_back(SortColumn{ colIndex, bReverse.value_or(false), bCaseSensitive.value_or(false) });
 }
 
 void UListWindow::DeleteAllRows()
